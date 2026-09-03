@@ -1,16 +1,51 @@
 # Sound-gen models — local setup
 
 4 модели развёрнуты локально (изолированный `.venv` на каждую), 2 — через готовый бесплатный
-хостинг вместо локальной установки. Веса всех локальных моделей лежат на D:, не на C:.
+хостинг вместо локальной установки. Пути к весам не зашиты в код — задаются переменной среды `MUSITION_MODELS_DIR` (см. ниже).
 
 Железо: RTX 3080 Ti (12GB VRAM). Все 4 локальные модели проверены реальной генерацией.
+
+## Пути и переменные среды
+
+В репозитории нет ни одного абсолютного пути — они задаются на каждом устройстве отдельно.
+
+| Переменная | Что | Пример |
+|---|---|---|
+| `MUSITION_MODELS_DIR` | корень, под которым лежат все веса и кэши | `D:\AIModels\SoundGen` |
+| `HF_TOKEN` | токен HuggingFace (нужен для gated-репо Stable Audio Open) | `hf_...` |
+
+Задать можно двумя способами — сначала читается переменная среды, потом `.env` в корне репозитория:
+
+```powershell
+# вариант 1: постоянно, для всей системы (нужен новый терминал после setx)
+setx MUSITION_MODELS_DIR "D:\AIModels\SoundGen"
+
+# вариант 2: только для проекта
+copy .env.example .env    # и вписать значения
+```
+
+`.env` в `.gitignore` — токен в репозиторий не попадает. Standalone-скрипты
+(`<model>\run.py`) `.env` не читают, им нужна именно переменная среды (`setx`);
+оркестратор и `download-*.ps1` читают оба источника.
+
+Всё остальное выводится из `MUSITION_MODELS_DIR` автоматически:
+
+| Подпапка | Что |
+|---|---|
+| `hf_cache` | общий кэш HuggingFace (`HF_HOME`) |
+| `_xdg_cache\suno` | веса Bark (`XDG_CACHE_HOME`) |
+| `ace-step-cache\checkpoints\ACE-Step-v1-3.5B` | веса ACE-Step |
+| `stable-audio-open-1.0` | веса Stable Audio Open |
+
+Сам репозиторий можно клонировать куда угодно: пути внутри считаются от файла скрипта
+(`Path(__file__)` / `$PSScriptRoot`).
 
 ## Быстрый запуск
 
 Каждая модель — отдельная папка со своим `.venv`. Активировать и запустить:
 
 ```powershell
-cd c:\Projects\AI\Musition\<model>
+cd <репозиторий>\<model>
 .venv\Scripts\python.exe run.py "<промпт>" [duration]
 ```
 
@@ -18,45 +53,45 @@ cd c:\Projects\AI\Musition\<model>
 
 ### AudioGen (Meta, SFX по тексту)
 ```powershell
-cd c:\Projects\AI\Musition\audiogen
+cd <репозиторий>\audiogen
 .venv\Scripts\python.exe run.py "a dog barking and footsteps on gravel" 5
 ```
-- Веса: `facebook/audiogen-medium`, ~4 GB, кэш в `D:\AIModels\SoundGen\hf_cache`
+- Веса: `facebook/audiogen-medium`, ~4 GB, кэш в `%MUSITION_MODELS_DIR%\hf_cache`
 - **Лицензия весов: CC-BY-NC — только некоммерческое использование.**
 - Python 3.11, torch 2.1.0+cu121 (репозиторий тянет transformers 5.x, который ломает torch 2.1 —
   в venv зафиксирован `transformers==4.44.2`, см. `overrides.txt`)
 
 ### Stable Audio Open (Stability AI, SFX + короткая музыка до 47с)
 ```powershell
-cd c:\Projects\AI\Musition\stable-audio-open
+cd <репозиторий>\stable-audio-open
 .venv\Scripts\python.exe run.py "a warm ambient pad with soft wind" 10
 ```
 - Веса: `stabilityai/stable-audio-open-1.0` (только diffusers-часть, ~4.9 GB) в
-  `D:\AIModels\SoundGen\stable-audio-open-1.0`
+  `%MUSITION_MODELS_DIR%\stable-audio-open-1.0`
 - **Gated-репозиторий** — лицензия принята, токен лежит в `.env` (HF_TOKEN)
 - **Лицензия использования: бесплатно при доходе студии < $1M/год**, иначе Enterprise-лицензия Stability AI
 - Python 3.11, torch 2.5.1+cu121, diffusers `StableAudioPipeline`
 
 ### Bark (Suno, TTS + невербальные звуки/шумы)
 ```powershell
-cd c:\Projects\AI\Musition\bark
+cd <репозиторий>\bark
 .venv\Scripts\python.exe run.py "[laughs] Hey, this is Bark. [sighs] Not bad!"
 ```
-- Веса: `suno/bark`, полная версия ~11.6 GB, кэш в `D:\AIModels\SoundGen\_xdg_cache\suno`
+- Веса: `suno/bark`, полная версия ~11.6 GB, кэш в `%MUSITION_MODELS_DIR%\_xdg_cache\suno`
 - Лёгкая версия: переменная `SUNO_USE_SMALL_MODELS=1` перед запуском — меньше вес, быстрее, ниже качество
 - Лицензия: MIT, коммерческое использование разрешено
 - Python 3.11, torch 2.5.1+cu121
 
 ### ACE-Step (музыка до 4 минут, вокал + инструментал)
 ```powershell
-cd c:\Projects\AI\Musition\ace-step
-.venv\Scripts\python.exe infer.py --checkpoint_path "D:\AIModels\SoundGen\ace-step-cache\checkpoints\ACE-Step-v1-3.5B" --output_path "c:\Projects\AI\Musition\ace-step\output.wav"
+cd <репозиторий>\ace-step
+.venv\Scripts\python.exe infer.py --checkpoint_path "$env:MUSITION_MODELS_DIR\ace-step-cache\checkpoints\ACE-Step-v1-3.5B" --output_path "$PWD\output.wav"
 ```
 Либо свой Gradio UI (как у остальных — через браузер):
 ```powershell
-.venv\Scripts\acestep.exe --checkpoint_path "D:\AIModels\SoundGen\ace-step-cache\checkpoints\ACE-Step-v1-3.5B"
+.venv\Scripts\acestep.exe --checkpoint_path "$env:MUSITION_MODELS_DIR\ace-step-cache\checkpoints\ACE-Step-v1-3.5B"
 ```
-- Веса: `ACE-Step/ACE-Step-v1-3.5B`, ~7.9 GB, в `D:\AIModels\SoundGen\ace-step-cache\checkpoints`
+- Веса: `ACE-Step/ACE-Step-v1-3.5B`, ~7.9 GB, в `%MUSITION_MODELS_DIR%\ace-step-cache\checkpoints`
 - Лицензия: Apache 2.0, коммерческое использование без ограничений
 - Python 3.11, torch 2.5.1+cu121
 - **Важно:** `--output_path` указывать абсолютным путём — в коде ACE-Step баг
@@ -78,15 +113,16 @@ community-демо на HF в нерабочем состоянии. Если п
 
 ## Диск и кэши
 
-Все веса и кэши пакетов переведены на D:, чтобы не забить C: (было 50GB свободно):
+Всё лежит под `MUSITION_MODELS_DIR` — заводите его на диске, где есть ~60 GB
+(на исходной машине это был `D:\AIModels\SoundGen`, чтобы не забить C:):
 
-| Путь | Что | Размер |
+| Подпапка | Что | Размер |
 |---|---|---|
-| `D:\AIModels\SoundGen\hf_cache` | общий кэш HuggingFace (`HF_HOME`) | ~10.5 GB |
-| `D:\AIModels\SoundGen\_xdg_cache\suno` | веса Bark | ~11.6 GB |
-| `D:\AIModels\SoundGen\ace-step-cache` | веса ACE-Step | ~12.6 GB |
-| `D:\AIModels\SoundGen\stable-audio-open-1.0` | веса Stable Audio Open | ~4.9 GB |
-| `D:\AIModels\SoundGen\_uv_cache` | кэш пакетов pip/uv (`UV_CACHE_DIR`) | ~16.8 GB |
+| `hf_cache` | общий кэш HuggingFace (`HF_HOME`) | ~10.5 GB |
+| `_xdg_cache\suno` | веса Bark | ~11.6 GB |
+| `ace-step-cache` | веса ACE-Step | ~12.6 GB |
+| `stable-audio-open-1.0` | веса Stable Audio Open | ~4.9 GB |
+| `_uv_cache` | кэш пакетов pip/uv (`UV_CACHE_DIR`) | ~16.8 GB |
 
 **Важно:** `HF_HOME` установлен через `setx` — это **глобальная** переменная окружения
 пользователя Windows, не только для этого проекта. Другие ваши HF-инструменты (если
@@ -99,7 +135,7 @@ nvidia STT и пустые ref-стабы от GGUF-загрузчиков) в `
 
 В ACE-Step-кэше есть ~5 GB дублирующихся файлов (модель при первом запуске сама докачала часть
 компонентов в стандартный HF-кэш поверх вручную скачанных файлов) — не мешает работе, можно
-удалить `D:\AIModels\SoundGen\ace-step-cache\checkpoints\models--ACE-Step--ACE-Step-v1-3.5B`
+удалить `%MUSITION_MODELS_DIR%\ace-step-cache\checkpoints\models--ACE-Step--ACE-Step-v1-3.5B`
 для экономии места, если понадобится.
 
 ## Известные грабли (на будущее)

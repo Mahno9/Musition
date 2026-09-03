@@ -50,12 +50,20 @@ function Get-JsonRetry($url) {
     return $null
 }
 
-$barkDir = "D:\AIModels\SoundGen\_xdg_cache\suno\bark_v0"
+# Все пути к весам берутся из MUSITION_MODELS_DIR (переменная среды или .env рядом со скриптом).
+$modelsDir = $env:MUSITION_MODELS_DIR
+if (-not $modelsDir -and (Test-Path "$PSScriptRoot\.env")) {
+    $modelsDir = ((Get-Content "$PSScriptRoot\.env" | Where-Object { $_ -match '^\s*MUSITION_MODELS_DIR\s*=' }) -split '=', 2)[1]
+}
+if (-not $modelsDir) { throw "MUSITION_MODELS_DIR не задан (см. README)" }
+$modelsDir = $modelsDir.Trim().Trim('"').Trim("'")
+
+$barkDir = "$modelsDir\_xdg_cache\suno\bark_v0"
 foreach ($f in @("text_2.pt", "coarse_2.pt", "fine_2.pt")) {
     Get-File "https://huggingface.co/suno/bark/resolve/main/$f" "$barkDir\$f"
 }
 
-$aceDir = "D:\AIModels\SoundGen\ace-step-cache\checkpoints\ACE-Step-v1-3.5B"
+$aceDir = "$modelsDir\ace-step-cache\checkpoints\ACE-Step-v1-3.5B"
 $tree = Get-JsonRetry "https://huggingface.co/api/models/ACE-Step/ACE-Step-v1-3.5B/tree/main?recursive=1"
 if ($null -eq $tree) {
     Write-Host "GAVE UP: could not list ACE-Step repo tree"

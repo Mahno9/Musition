@@ -48,6 +48,13 @@ def _dotenv():
 
 DOTENV = _dotenv()
 
+# Every weight/cache path hangs off this one env var (or .env) -- see README.
+MODELS_DIR = Path(os.environ.get("MUSITION_MODELS_DIR")
+                  or DOTENV.get("MUSITION_MODELS_DIR") or "")
+if not MODELS_DIR.name:
+    raise SystemExit("MUSITION_MODELS_DIR не задан: пропиши его в .env или в переменных "
+                     "среды устройства (см. README, раздел «Пути и переменные среды»)")
+
 
 # ---------------------------------------------------------------- worker slot
 
@@ -107,8 +114,9 @@ class Slot:
             raise HTTPException(500, "нет venv для %s: %s" % (name, py))
 
         env = dict(os.environ)
-        env.setdefault("HF_HOME", r"D:\AIModels\SoundGen\hf_cache")
-        env["XDG_CACHE_HOME"] = r"D:\AIModels\SoundGen\_xdg_cache"  # Bark weights live here
+        env["MUSITION_MODELS_DIR"] = str(MODELS_DIR)
+        env.setdefault("HF_HOME", str(MODELS_DIR / "hf_cache"))
+        env["XDG_CACHE_HOME"] = str(MODELS_DIR / "_xdg_cache")  # Bark weights live here
         env["PYTHONUNBUFFERED"] = "1"
         if DOTENV.get("HF_TOKEN"):
             env["HF_TOKEN"] = DOTENV["HF_TOKEN"]
@@ -251,7 +259,7 @@ def api_generate(body: dict = Body(...)):
         except urllib.error.HTTPError as e:
             raise HTTPException(500, json.loads(e.read() or b"{}").get("error", str(e)))
         except Exception as e:
-            raise HTTPException(500, "воркер не ответил: %s\n%s" % (e, SLOT.error or ""))
+            raise HTTPException(500, "воркер не ответил: %s\n%s" % (e, SLOT.last_stderr or ""))
 
         SLOT.last_used = time.time()
         saved = dict(params, **res.get("meta", {}))

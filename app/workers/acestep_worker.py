@@ -5,16 +5,18 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import common
 
-CHECKPOINT = "D:/AIModels/SoundGen/ace-step-cache/checkpoints/ACE-Step-v1-3.5B"
 PIPE = None
 
 
 def load():
     global PIPE
     import acestep.pipeline_ace_step as pas
+    # Resolved here, not at import: importing this module must not need the env var.
+    checkpoint = os.path.join(common.models_dir(), "ace-step-cache", "checkpoints",
+                              "ACE-Step-v1-3.5B")
     pas.tqdm = common.progress_tqdm(pas.tqdm)  # real % from the diffusion loop
-    PIPE = pas.ACEStepPipeline(checkpoint_dir=CHECKPOINT, dtype="bfloat16")
-    PIPE.load_checkpoint(CHECKPOINT)
+    PIPE = pas.ACEStepPipeline(checkpoint_dir=checkpoint, dtype="bfloat16")
+    PIPE.load_checkpoint(checkpoint)
 
 
 def _seeds(v):

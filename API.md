@@ -7,7 +7,7 @@
 ## Запуск сервера
 
 ```powershell
-cd c:\Projects\AI\Musition
+cd <репозиторий>
 .\start.ps1
 ```
 
@@ -176,7 +176,7 @@ Invoke-RestMethod "http://127.0.0.1:8000/api/gallery/<id>" -Method Delete
 
 ```powershell
 # 1. запустить (в отдельном окне/процессе)
-Start-Process powershell -ArgumentList "-NoExit","-Command","c:\Projects\AI\Musition\start.ps1"
+Start-Process powershell -ArgumentList "-NoExit","-Command","$PWD\start.ps1"
 Start-Sleep 3
 
 # 2. сгенерировать

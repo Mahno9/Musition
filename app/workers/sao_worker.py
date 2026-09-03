@@ -5,7 +5,6 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import common
 
-WEIGHTS = "D:/AIModels/SoundGen/stable-audio-open-1.0"
 PIPE = None
 
 
@@ -13,7 +12,8 @@ def load():
     global PIPE
     import torch
     from diffusers import StableAudioPipeline
-    PIPE = StableAudioPipeline.from_pretrained(WEIGHTS, torch_dtype=torch.float16).to("cuda")
+    weights = os.path.join(common.models_dir(), "stable-audio-open-1.0")
+    PIPE = StableAudioPipeline.from_pretrained(weights, torch_dtype=torch.float16).to("cuda")
 
 
 def generate(p):

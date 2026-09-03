@@ -34,8 +34,16 @@ function Get-File($url, $dest, $token = $null) {
     Write-Host "GAVE UP: $dest"
 }
 
-$saoTok = ((Get-Content "c:\Projects\AI\Musition\.env" | Where-Object { $_ -match '^\s*HF_TOKEN\s*=' }) -split '=', 2)[1].Trim().Trim('"').Trim("'")
-$saoDir = "D:\AIModels\SoundGen\stable-audio-open-1.0"
+# Все пути к весам берутся из MUSITION_MODELS_DIR (переменная среды или .env рядом со скриптом).
+$modelsDir = $env:MUSITION_MODELS_DIR
+if (-not $modelsDir -and (Test-Path "$PSScriptRoot\.env")) {
+    $modelsDir = ((Get-Content "$PSScriptRoot\.env" | Where-Object { $_ -match '^\s*MUSITION_MODELS_DIR\s*=' }) -split '=', 2)[1]
+}
+if (-not $modelsDir) { throw "MUSITION_MODELS_DIR не задан (см. README)" }
+$modelsDir = $modelsDir.Trim().Trim('"').Trim("'")
+
+$saoTok = ((Get-Content "$PSScriptRoot\.env" | Where-Object { $_ -match '^\s*HF_TOKEN\s*=' }) -split '=', 2)[1].Trim().Trim('"').Trim("'")
+$saoDir = "$modelsDir\stable-audio-open-1.0"
 $saoFiles = @(
     "model_index.json", "model_config.json", "LICENSE.md",
     "scheduler/scheduler_config.json",

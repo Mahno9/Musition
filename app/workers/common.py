@@ -16,6 +16,14 @@ STATE = {"loaded": False, "busy": False, "stage": "idle", "progress": None,
 _gen_lock = threading.Lock()
 
 
+def models_dir():
+    """Root of the weights/caches tree; the orchestrator passes it in the env."""
+    d = os.environ.get("MUSITION_MODELS_DIR")
+    if not d:
+        raise SystemExit("MUSITION_MODELS_DIR не задан (см. README)")
+    return d
+
+
 def set_progress(done, total):
     # AudioGen's extend path reports past `total` once it starts a second segment.
     STATE["progress"] = round(min(100.0, 100.0 * done / max(total, 1)), 1)

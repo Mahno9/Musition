@@ -1,4 +1,6 @@
+import os
 import sys
+
 import torch
 import soundfile as sf
 from diffusers import StableAudioPipeline
@@ -6,8 +8,12 @@ from diffusers import StableAudioPipeline
 prompt = sys.argv[1] if len(sys.argv) > 1 else "a warm ambient pad with soft wind"
 duration = float(sys.argv[2]) if len(sys.argv) > 2 else 10.0
 
+weights = os.environ.get("MUSITION_MODELS_DIR")
+if not weights:
+    sys.exit("MUSITION_MODELS_DIR не задан (см. README)")
+
 pipe = StableAudioPipeline.from_pretrained(
-    "D:/AIModels/SoundGen/stable-audio-open-1.0", torch_dtype=torch.float16
+    os.path.join(weights, "stable-audio-open-1.0"), torch_dtype=torch.float16
 )
 pipe = pipe.to("cuda")
 
