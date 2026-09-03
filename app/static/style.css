@@ -1,0 +1,124 @@
+:root {
+  color-scheme: light dark;
+  --bg: #fff; --fg: #1a1a1a; --muted: #666; --line: #d8d8d8;
+  --card: #f6f6f6; --accent: #3b6fd4; --warn: #a05000; --err: #b3261e;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #16181c; --fg: #e6e6e6; --muted: #9aa0a6; --line: #33373d;
+    --card: #1f2228; --accent: #6f9cf0; --warn: #e0a35a; --err: #f2837c;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--fg);
+  font: 14px/1.45 system-ui, "Segoe UI", sans-serif;
+}
+header {
+  position: sticky; top: 0; z-index: 5; background: var(--bg);
+  border-bottom: 1px solid var(--line); display: flex; align-items: center;
+  gap: 12px; padding: 0 16px;
+}
+nav { display: flex; flex-wrap: wrap; flex: 1; }
+nav button, nav a {
+  background: none; border: none; border-bottom: 2px solid transparent;
+  color: var(--muted); font: inherit; padding: 12px 14px; cursor: pointer;
+  text-decoration: none;
+}
+nav button.on { color: var(--fg); border-bottom-color: var(--accent); }
+nav button:hover, nav a:hover { color: var(--fg); }
+.slot { color: var(--muted); font-size: 12px; white-space: nowrap; }
+main { max-width: 900px; margin: 0 auto; padding: 20px 16px 60px; }
+.pane { display: none; }
+.pane.on { display: block; }
+h2 { margin: 0 0 4px; font-size: 20px; }
+.note { color: var(--warn); margin: 0 0 16px; font-size: 13px; }
+.hint { color: var(--muted); font-size: 12px; margin: 2px 0 0; }
+label.f { display: block; margin: 12px 0; }
+label.f > span { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; }
+input[type=text], input[type=number], select, textarea {
+  width: 100%; padding: 7px 9px; border: 1px solid var(--line); border-radius: 6px;
+  background: var(--bg); color: var(--fg); font: inherit;
+}
+textarea { min-height: 90px; resize: vertical; font-family: ui-monospace, Consolas, monospace; }
+input[type=range] { width: 100%; }
+label.chk { display: flex; align-items: center; gap: 8px; margin: 10px 0; }
+label.chk input { margin: 0; }
+details {
+  border: 1px solid var(--line); border-radius: 8px; margin: 10px 0;
+  background: var(--card); padding: 0 12px;
+}
+details > summary { cursor: pointer; padding: 10px 0; font-weight: 600; }
+details[open] { padding-bottom: 8px; }
+button.go {
+  background: var(--accent); color: #fff; border: none; border-radius: 6px;
+  padding: 10px 20px; font: inherit; font-weight: 600; cursor: pointer; margin-top: 16px;
+}
+button.go:disabled { opacity: .5; cursor: not-allowed; }
+.status { margin: 12px 0; min-height: 20px; font-size: 13px; }
+.status.err { color: var(--err); white-space: pre-wrap; font-family: ui-monospace, monospace; }
+progress { width: 100%; height: 8px; }
+.result { margin-top: 12px; }
+audio { width: 100%; }
+.item {
+  border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px;
+  margin: 10px 0; background: var(--card);
+}
+.item .row { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.item .m { font-weight: 600; }
+.item .t { color: var(--muted); font-size: 12px; }
+.item .p { flex: 1; min-width: 200px; }
+.item button { font: inherit; font-size: 12px; padding: 4px 10px; cursor: pointer;
+  border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg); }
+.item button:hover { border-color: var(--accent); }
+a { color: var(--accent); }
+
+/* описание модели */
+.about {
+  border-left: 3px solid var(--accent); padding: 1px 0 1px 14px;
+  margin: 0 0 20px; font-size: 13px;
+}
+.about p, .about ul { margin: 7px 0; }
+.about ul { padding-left: 20px; }
+.about li { margin: 3px 0; }
+.about code {
+  background: var(--card); border: 1px solid var(--line); border-radius: 4px;
+  padding: 0 4px; font-size: 12px;
+}
+
+/* окно параметров артефакта */
+dialog {
+  border: 1px solid var(--line); border-radius: 10px; padding: 20px 22px;
+  background: var(--bg); color: var(--fg);
+  width: min(720px, 92vw); max-height: 88vh; overflow: auto;
+}
+dialog::backdrop { background: rgba(0, 0, 0, .55); }
+dialog h3 { margin: 0 0 2px; font-size: 18px; }
+dialog #info-meta { margin: 0 0 12px; word-break: break-all; }
+dialog #info-params { width: 100%; border-collapse: collapse; margin: 12px 0; }
+dialog #info-params th {
+  text-align: left; vertical-align: top; padding: 6px 12px 6px 0; width: 38%;
+  border-top: 1px solid var(--line); font-weight: 600;
+}
+dialog #info-params th code { color: var(--muted); font-weight: 400; font-size: 11px; }
+dialog #info-params td { border-top: 1px solid var(--line); padding: 6px 0; }
+dialog #info-params pre {
+  margin: 0; white-space: pre-wrap; word-break: break-word;
+  font-family: ui-monospace, Consolas, monospace; font-size: 12px; max-height: 160px; overflow: auto;
+}
+dialog #info-json {
+  background: var(--card); border: 1px solid var(--line); border-radius: 6px;
+  padding: 8px; overflow: auto; max-height: 260px; font-size: 12px;
+}
+dialog menu {
+  display: flex; gap: 8px; flex-wrap: wrap; margin: 16px 0 0; padding: 0;
+  border-top: 1px solid var(--line); padding-top: 14px;
+}
+dialog menu button {
+  font: inherit; padding: 7px 14px; border: 1px solid var(--line); border-radius: 6px;
+  background: var(--bg); color: var(--fg); cursor: pointer;
+}
+dialog menu button:hover:not(:disabled) { border-color: var(--accent); }
+dialog menu button:disabled { opacity: .5; cursor: not-allowed; }
+dialog menu button.danger { color: var(--err); }
+dialog menu button.danger:hover { border-color: var(--err); }

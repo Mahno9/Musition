@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+.env
+
+# upstream clone, not part of this repo (see README)
+/ace-step/
+
+# generated audio, logs, gallery db
+app/data/
+*.wav
+*.log
+output_input_params.json
