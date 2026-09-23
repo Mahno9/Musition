@@ -27,11 +27,15 @@ UPLOADS = APP / "data" / "uploads"
 DB_PATH = APP / "data" / "gallery.db"
 IDLE_UNLOAD_S = 600
 
+# One runtime for every model: ACE-Step's venv, with SAO, Bark and demucs installed on
+# top without changing a single pin.
+VENV = ROOT / "ace-step" / ".venv"
+
 MODELS = {
-    "audiogen": {"dir": ROOT / "audiogen", "script": "audiogen_worker.py", "port": 8101},
     "stable-audio-open": {"dir": ROOT / "stable-audio-open", "script": "sao_worker.py", "port": 8102},
     "bark": {"dir": ROOT / "bark", "script": "bark_worker.py", "port": 8103},
     "ace-step": {"dir": ROOT / "ace-step", "script": "acestep_worker.py", "port": 8104},
+    "demucs": {"dir": APP, "script": "demucs_worker.py", "port": 8105},
 }
 
 
@@ -109,7 +113,7 @@ class Slot:
 
     def _start(self, name):
         cfg = MODELS[name]
-        py = cfg["dir"] / ".venv" / "Scripts" / "python.exe"
+        py = VENV / "Scripts" / "python.exe"
         if not py.exists():
             raise HTTPException(500, "нет venv для %s: %s" % (name, py))
 
@@ -222,7 +226,7 @@ def api_status():
 
 @app.get("/api/voices")
 def api_voices():
-    d = MODELS["bark"]["dir"] / ".venv" / "Lib" / "site-packages" / "bark" / "assets" / "prompts"
+    d = VENV / "Lib" / "site-packages" / "bark" / "assets" / "prompts"
     names = [str(Path(f).relative_to(d).with_suffix("")).replace("\\", "/")
              for f in glob.glob(str(d / "**" / "*.npz"), recursive=True)]
     return sorted(names)
@@ -265,7 +269,7 @@ def api_generate(body: dict = Body(...)):
         saved = dict(params, **res.get("meta", {}))
         saved.pop("out_path", None)
         prompt = params.get("prompt") or params.get("text") or ""
-        dur = params.get("duration") or params.get("audio_end_in_s") or params.get("audio_duration")
+        dur = saved.get("duration") or saved.get("audio_end_in_s") or saved.get("audio_duration")
         return [add_gen(model, prompt, dur, p, saved) for p in res["paths"]]
     finally:
         SLOT.gen_lock.release()

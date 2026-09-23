@@ -1,9 +1,9 @@
 # Sound-gen models — local setup
 
-4 модели развёрнуты локально (изолированный `.venv` на каждую), 2 — через готовый бесплатный
+3 модели развёрнуты локально на одном общем venv (см. «Быстрый запуск»), 2 — через готовый бесплатный
 хостинг вместо локальной установки. Пути к весам не зашиты в код — задаются переменной среды `MUSITION_MODELS_DIR` (см. ниже).
 
-Железо: RTX 3080 Ti (12GB VRAM). Все 4 локальные модели проверены реальной генерацией.
+Железо: RTX 3080 Ti (12GB VRAM). Все 3 локальные модели проверены реальной генерацией.
 
 ## Пути и переменные среды
 
@@ -42,29 +42,28 @@ copy .env.example .env    # и вписать значения
 
 ## Быстрый запуск
 
-Каждая модель — отдельная папка со своим `.venv`. Активировать и запустить:
+Окружение одно на все модели — `ace-step\.venv` (Python 3.11, torch 2.5.1+cu121).
+Stable Audio Open, Bark и Demucs доставлены поверх venv ACE-Step, ни одна уже стоявшая
+версия не сдвинулась:
+
+```powershell
+uv pip install --python ace-step\.venv\Scripts\python.exe sentencepiece torchsde demucs==4.1.0 `
+  "suno-bark @ git+https://github.com/suno-ai/bark.git@f4f32d4cd480dfec1c245d258174bc9bde3c2148"
+```
+
+Запуск — из папки модели:
 
 ```powershell
 cd <репозиторий>\<model>
-.venv\Scripts\python.exe run.py "<промпт>" [duration]
+..\ace-step\.venv\Scripts\python.exe run.py "<промпт>" [duration]
 ```
 
 Результат — `output.wav` в папке модели.
 
-### AudioGen (Meta, SFX по тексту)
-```powershell
-cd <репозиторий>\audiogen
-.venv\Scripts\python.exe run.py "a dog barking and footsteps on gravel" 5
-```
-- Веса: `facebook/audiogen-medium`, ~4 GB, кэш в `%MUSITION_MODELS_DIR%\hf_cache`
-- **Лицензия весов: CC-BY-NC — только некоммерческое использование.**
-- Python 3.11, torch 2.1.0+cu121 (репозиторий тянет transformers 5.x, который ломает torch 2.1 —
-  в venv зафиксирован `transformers==4.44.2`, см. `overrides.txt`)
-
 ### Stable Audio Open (Stability AI, SFX + короткая музыка до 47с)
 ```powershell
 cd <репозиторий>\stable-audio-open
-.venv\Scripts\python.exe run.py "a warm ambient pad with soft wind" 10
+..\ace-step\.venv\Scripts\python.exe run.py "a warm ambient pad with soft wind" 10
 ```
 - Веса: `stabilityai/stable-audio-open-1.0` (только diffusers-часть, ~4.9 GB) в
   `%MUSITION_MODELS_DIR%\stable-audio-open-1.0`
@@ -75,7 +74,7 @@ cd <репозиторий>\stable-audio-open
 ### Bark (Suno, TTS + невербальные звуки/шумы)
 ```powershell
 cd <репозиторий>\bark
-.venv\Scripts\python.exe run.py "[laughs] Hey, this is Bark. [sighs] Not bad!"
+..\ace-step\.venv\Scripts\python.exe run.py "[laughs] Hey, this is Bark. [sighs] Not bad!"
 ```
 - Веса: `suno/bark`, полная версия ~11.6 GB, кэш в `%MUSITION_MODELS_DIR%\_xdg_cache\suno`
 - Лёгкая версия: переменная `SUNO_USE_SMALL_MODELS=1` перед запуском — меньше вес, быстрее, ниже качество
@@ -144,8 +143,6 @@ nvidia STT и пустые ref-стабы от GGUF-загрузчиков) в `
   скрипты докачки с `curl -C -` (резюме с реального оффсета на диске, не с оффсета на старте
   попытки) и повторной проверкой размера файла при обрыве. Штатный `huggingface_hub`/`hf` CLI
   на этой сети не годится: при обрыве начинает файл заново вместо докачки.
-- **overrides.txt** в `audiogen/` — форсирует версии `av` и `numpy`, которых официально требует
-  audiocraft, но для которых на Windows нет wheel-сборки под нужный Python.
 
 ## Приложение (единый UI в браузере)
 
@@ -153,15 +150,19 @@ nvidia STT и пустые ref-стабы от GGUF-загрузчиков) в `
 .\start.ps1          # → http://127.0.0.1:8000
 ```
 
-Одна страница со вкладками на все модели: `AudioGen | Stable Audio Open | Bark |
-ACE-Step | Hunyuan-Foley ↗ | YuE ↗ | Галерея`. Ручной запуск `run.py`/`infer.py` больше
-не нужен, все параметры моделей выведены в форму.
+Одна страница со вкладками на все модели: `Stable Audio Open | Bark |
+ACE-Step | Demucs (стемы) | Hunyuan-Foley ↗ | YuE ↗ | Галерея`. Ручной запуск
+`run.py`/`infer.py` больше не нужен, все параметры моделей выведены в форму.
+
+**Demucs** — единственная вкладка, которая ничего не генерирует: она разбирает готовый
+файл на стемы (вокал / минус / все источники). Веса htdemucs
+(~80 MB) качаются при первом вызове. Работает и на CPU (трек 1:54 — около минуты).
 
 ### Как устроено
 
 ```
 app/orchestrator.py      FastAPI на 8000: отдаёт UI, держит ОДИН слот GPU, ведёт галерею
-app/workers/*.py         по воркеру на модель, каждый в своём .venv, порты 8101-8104
+app/workers/*.py         по воркеру на модель, все в общем venv, порты 8102-8105
 app/static/              страница целиком: index.html + app.js + style.css, без сборки
 app/data/outputs/<model>/<uuid>.wav   результаты
 app/data/gallery.db      SQLite с историей и параметрами каждой генерации
@@ -178,8 +179,8 @@ app/data/gallery.db      SQLite с историей и параметрами к
 воркер выгружается сам через 10 минут (`IDLE_UNLOAD_S` в `orchestrator.py`).
 
 Одновременно идёт только одна генерация: вторая получает 409, кнопки на других вкладках
-блокируются с пояснением. Прогресс в процентах есть у всех четырёх (Stable Audio Open —
-`callback`, ACE-Step — обёртка над его `tqdm`, AudioGen — `set_custom_progress_callback`,
+блокируются с пояснением. Прогресс в процентах есть у SAO, ACE-Step и Demucs (Stable Audio Open —
+`callback`, ACE-Step — обёртка над его `tqdm`, Demucs — свой колбэк по чанкам,
 Bark — только счётчик времени, у него нет колбэка).
 
 На каждой вкладке — блок «что это за модель и когда её брать»: сильные стороны, чего модель

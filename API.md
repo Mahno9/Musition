@@ -11,7 +11,7 @@ cd <репозиторий>
 .\start.ps1
 ```
 
-Слушает `127.0.0.1:8000`, пока не остановлен (Ctrl+C). Держит один GPU-слот на все 4
+Слушает `127.0.0.1:8000`, пока не остановлен (Ctrl+C). Держит один GPU-слот на все
 модели — вторая генерация во время первой получит `409`.
 
 ## Эндпоинты
@@ -44,24 +44,24 @@ Invoke-RestMethod http://127.0.0.1:8000/api/status
 Тело: `{"model": "<имя>", "params": {...}}`. `out_path` подставляет сервер сам — не передавать.
 
 ```powershell
-$body = @{ model = "audiogen"; params = @{ prompt = "a dog barking on gravel"; duration = 5 } } | ConvertTo-Json
+$body = @{ model = "stable-audio-open"; params = @{ prompt = "a dog barking on gravel"; audio_end_in_s = 5 } } | ConvertTo-Json
 Invoke-RestMethod http://127.0.0.1:8000/api/generate -Method Post -ContentType "application/json" -Body $body
 ```
 
 ```bash
 curl -s http://127.0.0.1:8000/api/generate -H "Content-Type: application/json" \
-  -d '{"model":"audiogen","params":{"prompt":"a dog barking on gravel","duration":5}}'
+  -d '{"model":"stable-audio-open","params":{"prompt":"a dog barking on gravel","audio_end_in_s":5}}'
 ```
 
 Ответ — массив записей галереи (обычно одна, у ACE-Step с `batch_size>1` — несколько):
 
 ```json
-[{"id": "…", "ts": "2026-09-03T…", "model": "audiogen", "prompt": "a dog barking on gravel",
-  "duration": 5, "file": "audiogen/<uuid>.wav", "params": "{…}"}]
+[{"id": "…", "ts": "2026-09-03T…", "model": "stable-audio-open", "prompt": "a dog barking on gravel",
+  "duration": 5, "file": "stable-audio-open/<uuid>.wav", "params": "{…}"}]
 ```
 
 Файл забирать по `http://127.0.0.1:8000/media/<file>` (например
-`http://127.0.0.1:8000/media/audiogen/<uuid>.wav`), либо напрямую с диска —
+`http://127.0.0.1:8000/media/stable-audio-open/<uuid>.wav`), либо напрямую с диска —
 `app/data/outputs/<file>`.
 
 **Первый вызов новой модели грузит веса** (до ~120с). Переключение модели сначала
@@ -101,20 +101,6 @@ Invoke-RestMethod "http://127.0.0.1:8000/api/gallery/<id>" -Method Delete
 ## Параметры по моделям
 
 `model` = ключ из левой колонки. Всё, что не передано, берёт дефолт воркера.
-
-### `audiogen` — AudioGen (SFX по тексту, до ~10-15с разумно)
-
-| Параметр | Тип | Дефолт |
-|---|---|---|
-| `prompt` | string | `""` |
-| `duration` | float (сек) | `5` |
-| `use_sampling` | bool | `true` |
-| `top_k` | int | `250` |
-| `top_p` | float | `0.0` |
-| `temperature` | float | `1.0` |
-| `cfg_coef` | float | `3.0` |
-| `two_step_cfg` | bool | `false` |
-| `seed` | int (`-1`=случайный) | `-1` |
 
 ### `stable-audio-open` — SFX / музыка до ~47с
 
@@ -171,6 +157,37 @@ Invoke-RestMethod "http://127.0.0.1:8000/api/gallery/<id>" -Method Delete
 Для `task=repaint` / `task=edit` нужен исходник:
 `src_audio_path=<путь>`, плюс для `repaint` — `repaint_start`/`repaint_end` (int, сек, дефолт `0`),
 для `edit` — `edit_target_prompt`, `edit_target_lyrics`, `edit_n_min`/`edit_n_max` (float, дефолт `0.0`/`1.0`), `edit_n_avg` (int, дефолт `1`).
+
+### `demucs` — разделение готового трека на стемы (вокал / минус)
+
+Единственный компонент, который ничего не генерирует: он разбирает уже готовый файл на
+дорожки (htdemucs — `drums`, `bass`, `other`, `vocals`). Нужен, когда требуется чистый
+вокал отдельной дорожкой: просить у генератора «а капелла» бесполезно — модель всё равно
+подкладывает инструменты, а здесь голос вырезается из готового рендера.
+
+| Параметр | Тип | Дефолт |
+|---|---|---|
+| `src_audio_path` | string (путь, см. upload) | обязателен |
+| `stem` | `both \| vocals \| no_vocals \| all \| <имя источника>` | `both` |
+| `model_name` | string (`htdemucs`, `htdemucs_ft`, `htdemucs_6s`, `hdemucs_mmi`, `mdx_extra`, …) | `htdemucs` |
+| `shifts` | int | `0` (воспроизводимо; >1 усредняет столько случайных сдвигов и во столько же раз дольше) |
+| `overlap` | float | `0.25` |
+| `device` | `auto \| cuda \| cpu` | `auto` (cuda, если доступна) |
+| `jobs` | int | `0` (параллельные процессы на CPU) |
+
+`both` даёт два файла — голос и всё остальное суммой; `all` — по файлу на каждый источник
+модели. Ответ — запись галереи на каждый стем, имена файлов
+`<uuid>_vocals.wav`, `<uuid>_no_vocals.wav`, `<uuid>_drums.wav` и т.д.
+
+```bash
+curl -s http://127.0.0.1:8000/api/upload -F "file=@C:/path/to/track.ogg"
+# → {"path": "…\\app\\data\\uploads\\<uuid>.ogg"}
+curl -s http://127.0.0.1:8000/api/generate -H "Content-Type: application/json" \
+  -d '{"model":"demucs","params":{"src_audio_path":"<путь из upload>","stem":"both"}}'
+```
+
+Веса (~80 MB для `htdemucs`) качаются при первом вызове в кэш под `MUSITION_MODELS_DIR`.
+Скорость: трек 1:54 — ~58 с на CPU (Ryzen 5950X), на GPU быстрее.
 
 ## Пример полного цикла (PowerShell)
 

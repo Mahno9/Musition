@@ -14,6 +14,7 @@ _TMP = Path(tempfile.mkdtemp(prefix="musition-test-"))
 o.OUTPUTS = _TMP / "outputs"
 o.OUTPUTS.mkdir()
 o.DB_PATH = _TMP / "gallery.db"
+o.VENV = Path(__file__).parent / ".venv"  # dummy worker needs no model runtime
 
 FAKE = {"dir": Path(__file__).parent, "script": "_dummy_worker.py", "port": 8199}
 FAKE2 = dict(FAKE, port=8198)
@@ -29,8 +30,31 @@ def check_seed_parsing():
     assert _seeds("случайно") is None, "мусор в поле сида должен давать случайный сид, а не падать"
 
 
+def check_stem_mapping():
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent / "workers"))
+    from demucs_worker import _wanted
+    four = ["drums", "bass", "other", "vocals"]
+    assert _wanted("vocals", four) == {"vocals": ["vocals"]}
+    assert _wanted("no_vocals", four) == {"no_vocals": ["drums", "bass", "other"]}
+    assert _wanted("both", four) == {"vocals": ["vocals"],
+                                     "no_vocals": ["drums", "bass", "other"]}
+    assert _wanted("all", four) == {s: [s] for s in four}
+    assert _wanted("drums", four) == {"drums": ["drums"]}
+    # У шестиисточниковой модели минус обязан включать пианино и гитару.
+    six = four + ["piano", "guitar"]
+    assert _wanted("no_vocals", six)["no_vocals"] == ["drums", "bass", "other", "piano", "guitar"]
+    try:
+        _wanted("вокал", four)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("неизвестное имя стема должно падать, а не молча резать не то")
+
+
 def main():
     check_seed_parsing()
+    check_stem_mapping()
     o.MODELS["_fake"] = FAKE
     o.MODELS["_fake2"] = FAKE2
 
@@ -54,7 +78,7 @@ def main():
 
     assert any(r["id"] == row["id"] for r in o.api_gallery())
     assert all(r["model"] == "_fake2" for r in o.api_gallery(model="_fake2"))
-    assert not any(r["id"] == row["id"] for r in o.api_gallery(model="audiogen"))
+    assert not any(r["id"] == row["id"] for r in o.api_gallery(model="bark"))
 
     # --- delete removes both row and file
     o.api_delete(row["id"])

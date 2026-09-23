@@ -1,7 +1,7 @@
 """Tiny stdlib HTTP server shared by all four model workers.
 
 ponytail: http.server, not FastAPI — workers live inside the models' fragile
-venvs (audiogen pins transformers==4.44.2), so zero extra installs there.
+venv, so zero extra installs there.
 """
 import json
 import os
@@ -25,7 +25,7 @@ def models_dir():
 
 
 def set_progress(done, total):
-    # AudioGen's extend path reports past `total` once it starts a second segment.
+    # ponytail: clamp — some callbacks overshoot `total`.
     STATE["progress"] = round(min(100.0, 100.0 * done / max(total, 1)), 1)
 
 
